@@ -15,6 +15,7 @@ func check(e error) {
     }
 }
 
+// Put a value in the top list if it deserves to be in it
 func meta(n int, h []int) []int {
 	if n > h[0] {
 		h = append(h, n)
@@ -24,16 +25,17 @@ func meta(n int, h []int) []int {
 	return h
 }
 
+// Sort the top list and cut out the surplus
 func sortAndSize (h []int, n int) []int {
-	// Sort the array
 	sort.Sort(sort.Reverse(sort.IntSlice(h)))
-	// And remove the last if needed
+	// Remove the last if needed
 	if len(h) > n {
 		h = h[:len(h)-1]
 	}
 	return h
 }
 
+// Verify if a number is in a slice
 func contains(s []int, e int) bool {
     for _, a := range s {
         if a == e {
@@ -56,6 +58,7 @@ func main() {
 	// f, err := os.Open("/home/agomes/Workspace/large_file.txt")
   check(err)
 
+  // Scan the file line by line to avoid putting the whole file in memory
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		cn, err := strconv.Atoi(scanner.Text())
