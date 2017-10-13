@@ -45,11 +45,21 @@ func contains(s []int, e int) bool {
     return false
 }
 
+func putOnQueue(cn int, c chan int) chan int {
+	c <- cn
+	return  c
+}
+
+// func all(cn int, c chan int, n int) []int {
+// }
+
+
 func main() {
 	start := time.Now()
 
 	var n int
 	var fp string
+	c := make(chan int, 1000)
 
 	switch a := len(os.Args); a {
 	case 1:
@@ -71,6 +81,8 @@ func main() {
 	for scanner.Scan() {
 		cn, err := strconv.Atoi(scanner.Text())
 		check(err)
+		go putOnQueue(cn, c)
+
 		h = sortAndSize(meta(cn, h), n)
 	}
 	if err := scanner.Err(); err != nil {
@@ -78,6 +90,10 @@ func main() {
 	}
 
 	elapsed := time.Since(start)
+	// fmt.Printf("Queue: \n")
+	// for i := range c {
+	// 	fmt.Println(i)
+	// }
 	fmt.Printf("Result: %v\n", h)
 	fmt.Printf("Executed in %v\n", elapsed)
 
