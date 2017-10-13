@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
+	// "sync"
 )
 
 func check(e error) {
@@ -46,12 +47,25 @@ func contains(s []int, e int) bool {
 }
 
 func putOnQueue(cn int, c chan int) chan int {
-	c <- cn
+	c<- cn
 	return  c
 }
 
-// func all(cn int, c chan int, n int) []int {
-// }
+func readFromQueue(c chan int, n int) int {
+	n = <- c
+	return n
+}
+
+func topN(c chan int, n int, h []int) {
+	// j := 0
+	// h := []int{0}
+		fmt.Printf("TopN\n")
+	for i := range c {
+		fmt.Printf("Partial[%v]: %v\n", i, h)
+		h = sortAndSize(meta(readFromQueue(c, n), h), n)
+		fmt.Printf("Partial[%v]: %v\n", i, h)
+	}
+}
 
 
 func main() {
@@ -78,13 +92,20 @@ func main() {
 
 	// Scan the file line by line to avoid putting the whole file in memory
 	scanner := bufio.NewScanner(f)
+	j := 0
 	for scanner.Scan() {
 		cn, err := strconv.Atoi(scanner.Text())
 		check(err)
-		go putOnQueue(cn, c)
 
-		h = sortAndSize(meta(cn, h), n)
+		go putOnQueue(cn, c)
+		j ++
+
+		// fmt.Printf("J[%v]\n", j)
+		go topN(c, n, h)
+		
+		// h = sortAndSize(meta(cn, h), n)
 	}
+	close(c)
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
