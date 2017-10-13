@@ -6,8 +6,9 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 )
-	
+
 func check(e error) {
     if e != nil {
         panic(e)
@@ -43,32 +44,31 @@ func contains(s []int, e int) bool {
 }
 
 func main() {
+	start := time.Now()
 	// n := os.Args[1:]
 	n := 10
 	h := []int{0}
-	c := 0
 	// fp := os.Args[2:]
 	// f, err := os.Open(fp)
 
-	f, err := os.Open("/home/alejdg/Workspace/ruby/half.txt")
-    check(err)
+	// f, err := os.Open("/home/agomes/Workspace/1m.txt")
+	f, err := os.Open("/home/agomes/Workspace/temp.txt")
+	// f, err := os.Open("/home/agomes/Workspace/large_file.txt")
+  check(err)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		cn, err := strconv.Atoi(scanner.Text())
-		h = meta(cn, h)
-		h = sortAndSize(h, n)
 		check(err)
-		c++
-		fmt.Println(c)
-		// fmt.Println(h)
-		// fmt.Println(scanner.Text()) // Println will add back the final '\n'
+		h = sortAndSize(meta(cn, h), n)
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading standard input:", err)
 	}
 
-	fmt.Println(h)
+	elapsed := time.Since(start)
+	fmt.Printf("Result: %v\n", h)
+	fmt.Printf("Executed in %v\n", elapsed)
 
 }
 
