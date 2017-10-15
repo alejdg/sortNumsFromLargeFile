@@ -47,18 +47,26 @@ func contains(s []int, e int) bool {
 
 func main() {
 	start := time.Now()
-	// n := os.Args[1:]
-	n := 10
+
+	var n int
+	var fp string
+
+	switch a := len(os.Args); a {
+	case 1:
+		fp = "/home/alejdg/Workspace/half.txt"
+		n = 10
+	case 2:
+		fp = os.Args[1]
+		n = 10
+	default:
+		fp = os.Args[1]
+		n, _ = strconv.Atoi(os.Args[2])
+	}
 	h := []int{0}
-	// fp := os.Args[2:]
-	// f, err := os.Open(fp)
+	f, err := os.Open(fp)
+	check(err)
 
-	// f, err := os.Open("/home/agomes/Workspace/1m.txt")
-	f, err := os.Open("/home/agomes/Workspace/temp.txt")
-	// f, err := os.Open("/home/agomes/Workspace/large_file.txt")
-  check(err)
-
-  // Scan the file line by line to avoid putting the whole file in memory
+	// Scan the file line by line to avoid putting the whole file in memory
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		cn, err := strconv.Atoi(scanner.Text())
