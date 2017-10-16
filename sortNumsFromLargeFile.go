@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	// "sync"
+	"sync"
 )
 
 func check(e error) {
@@ -70,23 +70,61 @@ func putOnQueue(cn int, c chan int) {
 	c<- cn
 }
 
-func readFromQueue(c chan int, n int) int {
-	n = <- c
+func readFromQueue(c chan int) int {
+	n := <- c
 	return n
 }
 
-func topN(c chan int, n int, h []int) []int {
+// func topN(c chan int, n int, h []int) []int {
+func topN(c chan int, n, p int) (/*<-chan */[]int) {
 	// j := 0
-	// h := []int{0}
-		fmt.Printf("TopN: %v\n", n)
-	for range c {
-	// for i:= range c {
-		// fmt.Printf("Partial[%v]: %v\n", i, h)
-		h = sortAndSize(meta(readFromQueue(c, n), h), n)
-		// fmt.Printf("Partial[%v]: %v\n", i, h)
+	h := []int{0}
+	// h := make([]int, 0)
+	fmt.Printf("TopN: %v\n", n)
+	cc := make(chan []int)
+	var mutex = &sync.Mutex{}
+	for j := 0; p > 0; p-- {
+		go func() {
+			i := 0
+			for range c {
+				mutex.Lock()
+				h = sortAndSize(meta(readFromQueue(c), h), n)
+				mutex.Unlock()
+				i++
+			}
+			fmt.Printf("Interactions[%d]: %d\n", j, i)
+			j++
+			fmt.Printf("Result: %v\n", h)
+			cc <- h
+			time.Sleep(5*time.Second)
+
+
+		}()
 	}
-	return h
+	for range c{
+			fmt.Println("Ok true")
+			time.Sleep(5*time.Second)
+	}
+	return <-cc
 }
+
+// func fanIn(c1,c2 chan int) []int {
+// 	// cc := make(chan []int)
+// 	// for p > 0; p-- {
+// 	// 	h, i := <-topN(c, n)
+// 	// 	fmt.Printf("H%d: %v - interactions:%v\n", i, h, i)
+// 	// }
+// 	h1, i1 := topN(c, n)
+// 	// h1, i1 := topN(c, n)
+// 	// h2, i2 := topN(c, n)
+// 	// fmt.Printf("H1: %v - interactions:%v\n", h1, i1)
+// 	// fmt.Printf("H2: %v - interactions:%v\n", h2, i2)
+
+// 	for n := range h2 {
+// 		h1 = meta(n, h1)
+// 	}
+// 	return h1
+// } 
 
 
 func main() {
@@ -94,7 +132,8 @@ func main() {
 
 	var n int
 	var fp string
-	c := make(chan int, 10000)
+	c := make(chan int)
+	p := 2
 
 	switch a := len(os.Args); a {
 	case 1:
@@ -107,22 +146,26 @@ func main() {
 		fp = os.Args[1]
 		n, _ = strconv.Atoi(os.Args[2])
 	}
-	h := []int{0}
+	// h := []int{0}
 	// f, err := os.Open(fp)
 	// check(err)
 
 	// go populateQueue(c, f)
-	go populateQueue(c, fp)
+	// for j:=0; p > 0; p-- {
+		go populateQueue(c, fp)
+		// fmt.Printf("J:%d\n", j)
+		// j++
+	// }
+	fmt.Println("teste")
 
-	h = topN(c, n, h)
+	// h, i := topN(c, n, p)
+	h := topN(c, n, p)
+
 
 	elapsed := time.Since(start)
-	// fmt.Printf("Queue: \n")
-	// for i := range c {
-	// 	fmt.Println(i)
-	// }
 	fmt.Printf("Result: %v\n", h)
 	fmt.Printf("Executed in %v\n", elapsed)
+	// fmt.Printf("Iteractions: %v\n", i)
 
 }
 
