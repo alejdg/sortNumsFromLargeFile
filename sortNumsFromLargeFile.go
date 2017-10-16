@@ -46,64 +46,61 @@ func contains(s []int, e int) bool {
     return false
 }
 
-func populateQueue(c chan int, fp string) {
+func populateQueue(c chan int, fp string, p int) {
 
 	f, _ := os.Open(fp)
+	var wg sync.WaitGroup
+	wg.Add(p)
 
-	// Scan the file line by line to avoid putting the whole file in memory
-	s := bufio.NewScanner(f)
-	i:= 0
-	for s.Scan() {
-		cn, _ := strconv.Atoi(s.Text())
-		putOnQueue(cn, c)
-		i++
+	for ; p > 0; p-- {
+		go func() {
+			defer wg.Done()
+			i:= 0
+			s := bufio.NewScanner(f)
+			for s.Scan() {
+				cn, _ := strconv.Atoi(s.Text())
+				c <- cn
+				if i == 0 {
+					fmt.Println(s.Text())
+				}
+				i++
+			}
+			if err := s.Err(); err != nil {
+				fmt.Println(os.Stderr, "reading standard input:", err)
+			}
+			fmt.Printf("On queue: %v\n", i)
+			fmt.Printf("Fila completa\n")
+		}()
 	}
-	close(c)
-	fmt.Printf("On queue: %v\n", i)
-	fmt.Printf("Fila completa\n")
-	if err := s.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-	}
+	go func() {
+		wg.Wait()
+		close(c)
+	}()
 }
 
 func putOnQueue(cn int, c chan int) {
 	c<- cn
 }
 
-func readFromQueue(c chan int) int {
-	n := <- c
-	return n
-}
-
 // func topN(c chan int, n int, h []int) []int {
 func topN(c chan int, n, p int) (/*<-chan */[]int) {
-	// j := 0
 	h := []int{0}
-	// h := make([]int, 0)
-	fmt.Printf("TopN: %v\n", n)
 	cc := make(chan []int)
 	var mutex = &sync.Mutex{}
-	for j := 0; p > 0; p-- {
+	for ; p > 0; p-- {
 		go func() {
 			i := 0
-			for range c {
+			for cn := range c {
 				mutex.Lock()
-				h = sortAndSize(meta(readFromQueue(c), h), n)
+				h = sortAndSize(meta(cn, h), n)
 				mutex.Unlock()
 				i++
 			}
-			fmt.Printf("Interactions[%d]: %d\n", j, i)
-			j++
-			fmt.Printf("Result: %v\n", h)
+			fmt.Printf("Interactions: %d\n", i)
+			// fmt.Printf("Partial Result: %v\n", h)
 			cc <- h
-			time.Sleep(5*time.Second)
-
 
 		}()
-	}
-	for range c{
-			fmt.Println("Ok true")
-			time.Sleep(5*time.Second)
 	}
 	return <-cc
 }
@@ -130,33 +127,34 @@ func topN(c chan int, n, p int) (/*<-chan */[]int) {
 func main() {
 	start := time.Now()
 
-	var n int
+	var n, p int
 	var fp string
-	c := make(chan int)
-	p := 2
+	// c := make(chan int)
+	c := make(chan int, 100000)
 
 	switch a := len(os.Args); a {
 	case 1:
 		fp = "/home/alejdg/Workspace/half.txt"
+		p = 1
 		n = 10
 	case 2:
 		fp = os.Args[1]
+		p = 1
+		n = 10
+	case 3:
+		fp = os.Args[1]
+		p, _ = strconv.Atoi(os.Args[2])
 		n = 10
 	default:
 		fp = os.Args[1]
-		n, _ = strconv.Atoi(os.Args[2])
+		p, _ = strconv.Atoi(os.Args[2])
+		n, _ = strconv.Atoi(os.Args[3])
 	}
 	// h := []int{0}
 	// f, err := os.Open(fp)
 	// check(err)
 
-	// go populateQueue(c, f)
-	// for j:=0; p > 0; p-- {
-		go populateQueue(c, fp)
-		// fmt.Printf("J:%d\n", j)
-		// j++
-	// }
-	fmt.Println("teste")
+	go populateQueue(c, fp, p)
 
 	// h, i := topN(c, n, p)
 	h := topN(c, n, p)
