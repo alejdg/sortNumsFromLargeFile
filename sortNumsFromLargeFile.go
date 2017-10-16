@@ -46,9 +46,28 @@ func contains(s []int, e int) bool {
     return false
 }
 
-func putOnQueue(cn int, c chan int) chan int {
+func populateQueue(c chan int, fp string) {
+
+	f, _ := os.Open(fp)
+
+	// Scan the file line by line to avoid putting the whole file in memory
+	s := bufio.NewScanner(f)
+	i:= 0
+	for s.Scan() {
+		cn, _ := strconv.Atoi(s.Text())
+		putOnQueue(cn, c)
+		i++
+	}
+	close(c)
+	fmt.Printf("On queue: %v\n", i)
+	fmt.Printf("Fila completa\n")
+	if err := s.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "reading standard input:", err)
+	}
+}
+
+func putOnQueue(cn int, c chan int) {
 	c<- cn
-	return  c
 }
 
 func readFromQueue(c chan int, n int) int {
@@ -56,15 +75,17 @@ func readFromQueue(c chan int, n int) int {
 	return n
 }
 
-func topN(c chan int, n int, h []int) {
+func topN(c chan int, n int, h []int) []int {
 	// j := 0
 	// h := []int{0}
-		fmt.Printf("TopN\n")
-	for i := range c {
-		fmt.Printf("Partial[%v]: %v\n", i, h)
+		fmt.Printf("TopN: %v\n", n)
+	for range c {
+	// for i:= range c {
+		// fmt.Printf("Partial[%v]: %v\n", i, h)
 		h = sortAndSize(meta(readFromQueue(c, n), h), n)
-		fmt.Printf("Partial[%v]: %v\n", i, h)
+		// fmt.Printf("Partial[%v]: %v\n", i, h)
 	}
+	return h
 }
 
 
@@ -73,7 +94,7 @@ func main() {
 
 	var n int
 	var fp string
-	c := make(chan int, 1000)
+	c := make(chan int, 10000)
 
 	switch a := len(os.Args); a {
 	case 1:
@@ -87,28 +108,13 @@ func main() {
 		n, _ = strconv.Atoi(os.Args[2])
 	}
 	h := []int{0}
-	f, err := os.Open(fp)
-	check(err)
+	// f, err := os.Open(fp)
+	// check(err)
 
-	// Scan the file line by line to avoid putting the whole file in memory
-	scanner := bufio.NewScanner(f)
-	j := 0
-	for scanner.Scan() {
-		cn, err := strconv.Atoi(scanner.Text())
-		check(err)
+	// go populateQueue(c, f)
+	go populateQueue(c, fp)
 
-		go putOnQueue(cn, c)
-		j ++
-
-		// fmt.Printf("J[%v]\n", j)
-		go topN(c, n, h)
-		
-		// h = sortAndSize(meta(cn, h), n)
-	}
-	close(c)
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-	}
+	h = topN(c, n, h)
 
 	elapsed := time.Since(start)
 	// fmt.Printf("Queue: \n")
