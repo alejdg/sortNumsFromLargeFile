@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"time"
+	"sync"
 )
 
 func check(e error) {
@@ -29,7 +30,7 @@ func meta(n int, h []int) []int {
 func sortAndSize (h []int, n int) []int {
 	sort.Sort(sort.Reverse(sort.IntSlice(h)))
 	// Remove the last if needed
-	if len(h) > n {
+	for len(h) > n {
 		h = h[:len(h)-1]
 	}
 	return h
@@ -45,33 +46,78 @@ func contains(s []int, e int) bool {
     return false
 }
 
+// Read the numbers on file and put them on a queue
+func putOnQueue(c chan int, fp string, p int) {
+	defer close(c)
+	f, _ := os.Open(fp)
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		cn, _ := strconv.Atoi(s.Text())
+		c <- cn
+	}
+	if err := s.Err(); err != nil {
+		fmt.Println(os.Stderr, "reading standard input:", err)
+	}
+}
+
+func topN(c chan int, n, p int) ([]int) {
+	var wg sync.WaitGroup
+	wg.Add(p)
+	h := []int{0}
+	cc := make(chan []int)
+
+	for ; p > 0; p-- {
+		go func() {
+			hn := []int{0}
+			for cn := range c {
+				hn = sortAndSize(meta(cn, hn), n)
+			}
+			cc <- hn
+			wg.Done()
+		}()
+	}
+	go func(){
+		wg.Wait()
+		for cv := range cc {
+			h = append(h, cv...)
+	  }
+	}()
+  h = sortAndSize(h, n)
+	return <-cc
+}
+
 func main() {
 	start := time.Now()
-	// n := os.Args[1:]
-	n := 10
-	h := []int{0}
-	// fp := os.Args[2:]
-	// f, err := os.Open(fp)
 
-	// f, err := os.Open("/home/agomes/Workspace/1m.txt")
-	f, err := os.Open("/home/agomes/Workspace/temp.txt")
-	// f, err := os.Open("/home/agomes/Workspace/large_file.txt")
-  check(err)
+	var n, p int
+	var fp string
+	c := make(chan int, 10000000)
 
-  // Scan the file line by line to avoid putting the whole file in memory
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		cn, err := strconv.Atoi(scanner.Text())
-		check(err)
-		h = sortAndSize(meta(cn, h), n)
+	switch a := len(os.Args); a {
+	case 1:
+		fp = "/Workspace/large_file.txt"
+		n = 10
+		p = 2
+	case 2:
+		fp = os.Args[1]
+		n = 10
+		p = 2
+	case 3:
+		fp = os.Args[1]
+		n, _ = strconv.Atoi(os.Args[2])
+		p = 2
+	default:
+		fp = os.Args[1]
+		n, _ = strconv.Atoi(os.Args[2])
+		p, _ = strconv.Atoi(os.Args[3])
 	}
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "reading standard input:", err)
-	}
+
+	go putOnQueue(c, fp, p)
+
+	h := topN(c, n, p)
 
 	elapsed := time.Since(start)
 	fmt.Printf("Result: %v\n", h)
-	fmt.Printf("Executed in %v\n", elapsed)
-
+	fmt.Printf("Executed in %v with %d workers.\n", elapsed, p)
 }
 
