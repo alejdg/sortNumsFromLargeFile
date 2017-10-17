@@ -58,7 +58,6 @@ func putOnQueue(c chan int, fp string, p int) {
 	if err := s.Err(); err != nil {
 		fmt.Println(os.Stderr, "reading standard input:", err)
 	}
-	fmt.Printf("Fila completa\n")
 }
 
 func topN(c chan int, n, p int) ([]int) {
@@ -70,17 +69,11 @@ func topN(c chan int, n, p int) ([]int) {
 
 	for ; p > 0; p-- {
 		go func() {
-			i := 0
 			for cn := range c {
-				if len(c) == 0 {
-					fmt.Println("Clean Queue")
-				}
 				mutex.Lock()
 				h = sortAndSize(meta(cn, h), n)
 				mutex.Unlock()
-				i++
 			}
-			fmt.Printf("Interactions: %d\n", i)
 			cc <- h
 			wg.Done()
 		}()
@@ -93,12 +86,12 @@ func main() {
 
 	var n, p int
 	var fp string
-	c := make(chan int, 100000)
-	// defer close(c)
+	c := make(chan int, 1000000)
 
+	// 
 	switch a := len(os.Args); a {
 	case 1:
-		fp = "/home/alejdg/Workspace/half.txt"
+		fp = "/Workspace/large_file.txt"
 		p = 1
 		n = 10
 	case 2:
@@ -119,11 +112,8 @@ func main() {
 
 	h := topN(c, n, p)
 
-
 	elapsed := time.Since(start)
 	fmt.Printf("Result: %v\n", h)
 	fmt.Printf("Executed in %v\n", elapsed)
-	// fmt.Printf("Iteractions: %v\n", i)
-
 }
 
