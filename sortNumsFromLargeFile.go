@@ -46,91 +46,55 @@ func contains(s []int, e int) bool {
     return false
 }
 
-func populateQueue(c chan int, fp string, p int) {
-
+// Read the numbers on file and put them on a queue
+func putOnQueue(c chan int, fp string, p int) {
+	defer close(c)
 	f, _ := os.Open(fp)
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		cn, _ := strconv.Atoi(s.Text())
+		c <- cn
+	}
+	if err := s.Err(); err != nil {
+		fmt.Println(os.Stderr, "reading standard input:", err)
+	}
+	fmt.Printf("Fila completa\n")
+}
+
+func topN(c chan int, n, p int) ([]int) {
 	var wg sync.WaitGroup
 	wg.Add(p)
-
-	for ; p > 0; p-- {
-		go func() {
-			defer wg.Done()
-			i:= 0
-			s := bufio.NewScanner(f)
-			for s.Scan() {
-				cn, _ := strconv.Atoi(s.Text())
-				c <- cn
-				if i == 0 {
-					fmt.Println(s.Text())
-				}
-				i++
-			}
-			if err := s.Err(); err != nil {
-				fmt.Println(os.Stderr, "reading standard input:", err)
-			}
-			fmt.Printf("On queue: %v\n", i)
-			fmt.Printf("Fila completa\n")
-		}()
-	}
-	go func() {
-		wg.Wait()
-		close(c)
-	}()
-}
-
-func putOnQueue(cn int, c chan int) {
-	c<- cn
-}
-
-// func topN(c chan int, n int, h []int) []int {
-func topN(c chan int, n, p int) (/*<-chan */[]int) {
+	var mutex = &sync.Mutex{}
 	h := []int{0}
 	cc := make(chan []int)
-	var mutex = &sync.Mutex{}
+
 	for ; p > 0; p-- {
 		go func() {
 			i := 0
 			for cn := range c {
+				if len(c) == 0 {
+					fmt.Println("Clean Queue")
+				}
 				mutex.Lock()
 				h = sortAndSize(meta(cn, h), n)
 				mutex.Unlock()
 				i++
 			}
 			fmt.Printf("Interactions: %d\n", i)
-			// fmt.Printf("Partial Result: %v\n", h)
 			cc <- h
-
+			wg.Done()
 		}()
 	}
 	return <-cc
 }
-
-// func fanIn(c1,c2 chan int) []int {
-// 	// cc := make(chan []int)
-// 	// for p > 0; p-- {
-// 	// 	h, i := <-topN(c, n)
-// 	// 	fmt.Printf("H%d: %v - interactions:%v\n", i, h, i)
-// 	// }
-// 	h1, i1 := topN(c, n)
-// 	// h1, i1 := topN(c, n)
-// 	// h2, i2 := topN(c, n)
-// 	// fmt.Printf("H1: %v - interactions:%v\n", h1, i1)
-// 	// fmt.Printf("H2: %v - interactions:%v\n", h2, i2)
-
-// 	for n := range h2 {
-// 		h1 = meta(n, h1)
-// 	}
-// 	return h1
-// } 
-
 
 func main() {
 	start := time.Now()
 
 	var n, p int
 	var fp string
-	// c := make(chan int)
 	c := make(chan int, 100000)
+	// defer close(c)
 
 	switch a := len(os.Args); a {
 	case 1:
@@ -150,13 +114,9 @@ func main() {
 		p, _ = strconv.Atoi(os.Args[2])
 		n, _ = strconv.Atoi(os.Args[3])
 	}
-	// h := []int{0}
-	// f, err := os.Open(fp)
-	// check(err)
 
-	go populateQueue(c, fp, p)
+	go putOnQueue(c, fp, p)
 
-	// h, i := topN(c, n, p)
 	h := topN(c, n, p)
 
 
