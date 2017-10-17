@@ -30,7 +30,7 @@ func meta(n int, h []int) []int {
 func sortAndSize (h []int, n int) []int {
 	sort.Sort(sort.Reverse(sort.IntSlice(h)))
 	// Remove the last if needed
-	if len(h) > n {
+	for len(h) > n {
 		h = h[:len(h)-1]
 	}
 	return h
@@ -63,21 +63,26 @@ func putOnQueue(c chan int, fp string, p int) {
 func topN(c chan int, n, p int) ([]int) {
 	var wg sync.WaitGroup
 	wg.Add(p)
-	var mutex = &sync.Mutex{}
 	h := []int{0}
 	cc := make(chan []int)
 
 	for ; p > 0; p-- {
 		go func() {
+			hn := []int{0}
 			for cn := range c {
-				mutex.Lock()
-				h = sortAndSize(meta(cn, h), n)
-				mutex.Unlock()
+				hn = sortAndSize(meta(cn, hn), n)
 			}
-			cc <- h
+			cc <- hn
 			wg.Done()
 		}()
 	}
+	go func(){
+		wg.Wait()
+		for cv := range cc {
+			h = append(h, cv...)
+	  }
+	}()
+  h = sortAndSize(h, n)
 	return <-cc
 }
 
@@ -86,26 +91,25 @@ func main() {
 
 	var n, p int
 	var fp string
-	c := make(chan int, 1000000)
+	c := make(chan int, 10000000)
 
-	// 
 	switch a := len(os.Args); a {
 	case 1:
 		fp = "/Workspace/large_file.txt"
-		p = 1
 		n = 10
+		p = 2
 	case 2:
 		fp = os.Args[1]
-		p = 1
 		n = 10
+		p = 2
 	case 3:
 		fp = os.Args[1]
-		p, _ = strconv.Atoi(os.Args[2])
-		n = 10
+		n, _ = strconv.Atoi(os.Args[2])
+		p = 2
 	default:
 		fp = os.Args[1]
-		p, _ = strconv.Atoi(os.Args[2])
-		n, _ = strconv.Atoi(os.Args[3])
+		n, _ = strconv.Atoi(os.Args[2])
+		p, _ = strconv.Atoi(os.Args[3])
 	}
 
 	go putOnQueue(c, fp, p)
@@ -114,6 +118,6 @@ func main() {
 
 	elapsed := time.Since(start)
 	fmt.Printf("Result: %v\n", h)
-	fmt.Printf("Executed in %v\n", elapsed)
+	fmt.Printf("Executed in %v with %d workers.\n", elapsed, p)
 }
 
